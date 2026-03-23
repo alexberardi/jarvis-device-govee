@@ -1,0 +1,18 @@
+name: "govee"
+display_name: "Govee"
+description: "Govee smart devices — hybrid LAN+cloud control for lights, plugs, kettles, and appliances via the Govee Developer API."
+version: "1.0.0"
+min_jarvis_version: "0.9.0"
+license: "MIT"
+author:
+  github: "alexberardi"
+categories: ["smart-home", "lighting"]
+platforms: ["darwin", "linux"]
+keywords: ["govee", "smart light", "led", "kettle", "cloud"]
+packages:
+  - name: httpx
+secrets:
+  - key: GOVEE_API_KEY
+    scope: integration
+    value_type: string
+    description: "Govee Developer API key (https://developer.govee.com)"
