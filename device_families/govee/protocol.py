@@ -215,21 +215,21 @@ The API key gives access to all Govee devices on your account."""
     ) -> DeviceControlResult:
         api_key: str | None = self._get_api_key()
         if not api_key:
-            return DeviceControlResult(success=False, message="GOVEE_API_KEY not configured")
+            return DeviceControlResult(success=False, entity_id=device.entity_id, action=action, error="GOVEE_API_KEY not configured")
 
         try:
             import httpx
         except ImportError:
             return DeviceControlResult(
-                success=False,
-                message="httpx is not installed. Run: pip install httpx",
+                success=False, entity_id=device.entity_id, action=action,
+                error="httpx is not installed. Run: pip install httpx",
             )
 
         params = params or {}
         cloud_id: str = device.cloud_id or ""
         sku: str = device.model or ""
         if not cloud_id:
-            return DeviceControlResult(success=False, message="No cloud device ID available")
+            return DeviceControlResult(success=False, entity_id=device.entity_id, action=action, error="No cloud device ID available")
 
         headers: dict[str, str] = {
             "Govee-API-Key": api_key,
@@ -298,10 +298,11 @@ The API key gives access to all Govee devices on your account."""
                 }
             else:
                 return DeviceControlResult(
-                    success=False, message="set_color requires 'rgb' or 'color_temp' param"
+                    success=False, entity_id=device.entity_id, action=action,
+                    error="set_color requires 'rgb' or 'color_temp' param",
                 )
         else:
-            return DeviceControlResult(success=False, message=f"Unsupported action: {action}")
+            return DeviceControlResult(success=False, entity_id=device.entity_id, action=action, error=f"Unsupported action: {action}")
 
         payload: dict[str, Any] = {
             "requestId": "jarvis",
@@ -320,18 +321,17 @@ The API key gives access to all Govee devices on your account."""
                     json=payload,
                 )
                 if resp.status_code == 200:
-                    action_label: str = action.replace("_", " ")
                     return DeviceControlResult(
-                        success=True, message=f"{device.name} {action_label} successful"
+                        success=True, entity_id=device.entity_id, action=action,
                     )
                 else:
                     body: str = resp.text
                     return DeviceControlResult(
-                        success=False,
-                        message=f"Govee API returned {resp.status_code}: {body}",
+                        success=False, entity_id=device.entity_id, action=action,
+                        error=f"Govee API returned {resp.status_code}: {body}",
                     )
         except Exception as e:
-            return DeviceControlResult(success=False, message=f"Control failed: {e}")
+            return DeviceControlResult(success=False, entity_id=device.entity_id, action=action, error=f"Control failed: {e}")
 
     async def get_state(self, device: DiscoveredDevice) -> dict[str, Any]:
         api_key: str | None = self._get_api_key()
