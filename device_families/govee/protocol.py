@@ -7,9 +7,11 @@ from typing import Any
 
 from jarvis_command_sdk import (
     IJarvisDeviceProtocol,
+    IJarvisSecret,
     DiscoveredDevice,
     DeviceControlResult,
     IJarvisButton,
+    JarvisSecret,
     JarvisStorage,
 )
 
@@ -79,6 +81,17 @@ class GoveeProtocol(IJarvisDeviceProtocol):
     friendly_name: str = "Govee"
     supported_domains: list[str] = ["switch", "light", "kettle"]
     connection_type: str = "hybrid"
+
+    @property
+    def required_secrets(self) -> list[IJarvisSecret]:
+        return [
+            JarvisSecret(
+                "GOVEE_API_KEY",
+                "Govee Developer API key (https://developer.govee.com)",
+                "integration", "string",
+                friendly_name="API Key",
+            ),
+        ]
 
     def _get_api_key(self) -> str | None:
         return _storage.get_secret("GOVEE_API_KEY")
