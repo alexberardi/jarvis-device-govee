@@ -81,6 +81,17 @@ class GoveeProtocol(IJarvisDeviceProtocol):
     friendly_name: str = "Govee"
     supported_domains: list[str] = ["switch", "light", "kettle"]
     connection_type: str = "hybrid"
+    setup_guide: str = """## Getting Your Govee API Key
+
+1. Open the **Govee Home** app on your phone
+2. Tap your **profile icon** (bottom right)
+3. Go to **Settings** (gear icon)
+4. Tap **About Us** → **Apply for API Key**
+5. Fill out the application form
+6. Govee will email your API key (usually within minutes)
+7. Paste the key here
+
+The API key gives access to all Govee devices on your account."""
 
     @property
     def required_secrets(self) -> list[IJarvisSecret]:
