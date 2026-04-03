@@ -87,14 +87,16 @@ class GoveeProtocol(IJarvisDeviceProtocol):
     def supported_actions(self) -> list[IJarvisButton]:
         return [
             IJarvisButton(
-                action="turn_on",
-                label="Turn On",
-                icon="power-plug",
+                button_text="Turn On",
+                button_action="turn_on",
+                button_type="primary",
+                button_icon="power-plug",
             ),
             IJarvisButton(
-                action="turn_off",
-                label="Turn Off",
-                icon="power-plug-off",
+                button_text="Turn Off",
+                button_action="turn_off",
+                button_type="secondary",
+                button_icon="power-plug-off",
             ),
         ]
 
