@@ -98,7 +98,7 @@ class GoveeProtocol(IJarvisDeviceProtocol):
             ),
         ]
 
-    async def discover_devices(self, timeout: int = 5) -> list[DiscoveredDevice]:
+    async def discover(self, timeout: int = 5) -> list[DiscoveredDevice]:
         api_key: str | None = self._get_api_key()
         if not api_key:
             logger.error("GOVEE_API_KEY not configured")
@@ -184,7 +184,7 @@ class GoveeProtocol(IJarvisDeviceProtocol):
 
         return devices
 
-    async def control_device(
+    async def control(
         self, device: DiscoveredDevice, action: str, params: dict[str, Any] | None = None
     ) -> DeviceControlResult:
         api_key: str | None = self._get_api_key()
