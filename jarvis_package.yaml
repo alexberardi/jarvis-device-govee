@@ -9,6 +9,12 @@ author:
 categories: ["smart-home", "lighting"]
 platforms: ["darwin", "linux"]
 keywords: ["govee", "smart light", "led", "kettle", "cloud"]
+
+components:
+  - type: device_protocol
+    name: govee
+    path: device_families/govee/protocol.py
+
 packages:
   - name: httpx
 secrets:
