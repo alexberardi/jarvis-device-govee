@@ -157,14 +157,14 @@ The API key gives access to all Govee devices on your account."""
 
                         devices.append(
                             DiscoveredDevice(
-                                id=_slugify(device_name) if device_name else _slugify(device_id_raw),
+                                entity_id=_slugify(device_name) if device_name else _slugify(device_id_raw),
                                 name=device_name or "Govee Device",
                                 domain=domain,
                                 protocol=self.protocol_name,
                                 model=sku,
                                 manufacturer="Govee",
                                 cloud_id=device_id_raw,
-                                metadata={"sku": sku},
+                                extra={"sku": sku},
                             )
                         )
 
@@ -191,14 +191,14 @@ The API key gives access to all Govee devices on your account."""
 
                         devices.append(
                             DiscoveredDevice(
-                                id=_slugify(device_name) if device_name else _slugify(device_id_raw),
+                                entity_id=_slugify(device_name) if device_name else _slugify(device_id_raw),
                                 name=device_name or "Govee Device",
                                 domain=domain,
                                 protocol=self.protocol_name,
                                 model=model,
                                 manufacturer="Govee",
                                 cloud_id=device_id_raw,
-                                metadata={"model": model},
+                                extra={"model": model},
                             )
                         )
 
