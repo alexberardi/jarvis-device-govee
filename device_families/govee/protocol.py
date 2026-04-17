@@ -333,7 +333,10 @@ The API key gives access to all Govee devices on your account."""
         except Exception as e:
             return DeviceControlResult(success=False, entity_id=device.entity_id, action=action, error=f"Control failed: {e}")
 
-    async def get_state(self, device: DiscoveredDevice) -> dict[str, Any]:
+    async def get_state(self, ip: str, **kwargs: Any) -> dict[str, Any] | None:
+        device: DiscoveredDevice | None = kwargs.get("device")
+        if device is None:
+            return None
         api_key: str | None = self._get_api_key()
         if not api_key:
             return {"error": "GOVEE_API_KEY not configured"}
