@@ -334,9 +334,6 @@ The API key gives access to all Govee devices on your account."""
             return DeviceControlResult(success=False, entity_id=device.entity_id, action=action, error=f"Control failed: {e}")
 
     async def get_state(self, ip: str, **kwargs: Any) -> dict[str, Any] | None:
-        device: DiscoveredDevice | None = kwargs.get("device")
-        if device is None:
-            return None
         api_key: str | None = self._get_api_key()
         if not api_key:
             return {"error": "GOVEE_API_KEY not configured"}
@@ -346,8 +343,11 @@ The API key gives access to all Govee devices on your account."""
         except ImportError:
             return {"error": "httpx is not installed"}
 
-        cloud_id: str = device.cloud_id or ""
-        sku: str = device.model or ""
+        # Accept cloud_id/model from kwargs (device_state_handler passes
+        # these directly) or from a DiscoveredDevice if the caller sends one.
+        device: DiscoveredDevice | None = kwargs.get("device")
+        cloud_id: str = kwargs.get("cloud_id") or (device.cloud_id if device else "") or ""
+        sku: str = kwargs.get("model") or (device.model if device else "") or ""
         if not cloud_id:
             return {"error": "No cloud device ID available"}
 
