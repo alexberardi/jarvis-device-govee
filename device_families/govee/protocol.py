@@ -16,6 +16,19 @@ from jarvis_command_sdk import (
 )
 
 try:
+    from jarvis_command_sdk import resolve_color
+except ImportError:  # SDK predates the shared color palette — spoken color
+    # names won't resolve, but keep explicit (r, g, b) lists working as before.
+    def resolve_color(value: object) -> tuple[int, int, int] | None:  # type: ignore[misc]
+        if isinstance(value, (list, tuple)) and len(value) == 3:
+            try:
+                r, g, b = (int(c) for c in value)
+            except (TypeError, ValueError):
+                return None
+            return (r, g, b) if all(0 <= c <= 255 for c in (r, g, b)) else None
+        return None
+
+try:
     from jarvis_log_client import JarvisLogger
 except ImportError:
     import logging
@@ -281,9 +294,15 @@ The API key gives access to all Govee devices on your account."""
                 "value": mode,
             }
         elif action == "set_color":
-            if "rgb" in params:
-                rgb = params["rgb"]
-                r, g, b = int(rgb[0]), int(rgb[1]), int(rgb[2])
+            # Accept an explicit ``rgb`` triple or a spoken ``color`` name
+            # ("green", "warm white", "255,0,128", "#ff0080"), resolved to RGB
+            # via the shared SDK palette. Prefer an explicit rgb, but fall back
+            # to the spoken color when the rgb value is missing or unusable.
+            rgb_val: tuple[int, int, int] | None = (
+                resolve_color(params.get("rgb")) or resolve_color(params.get("color"))
+            )
+            if rgb_val is not None:
+                r, g, b = rgb_val
                 capability = {
                     "type": "devices.capabilities.color_setting",
                     "instance": "colorRgb",
@@ -299,7 +318,7 @@ The API key gives access to all Govee devices on your account."""
             else:
                 return DeviceControlResult(
                     success=False, entity_id=device.entity_id, action=action,
-                    error="set_color requires 'rgb' or 'color_temp' param",
+                    error="set_color requires 'rgb', 'color', or 'color_temp' param",
                 )
         else:
             return DeviceControlResult(success=False, entity_id=device.entity_id, action=action, error=f"Unsupported action: {action}")
