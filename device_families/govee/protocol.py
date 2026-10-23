@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from typing import Any
 
 from jarvis_command_sdk import (
@@ -56,6 +57,9 @@ _storage = JarvisStorage("govee")
 
 GOVEE_API_BASE: str = "https://openapi.api.govee.com/router/api/v1"
 GOVEE_API_LEGACY_BASE: str = "https://developer-api.govee.com/v1"
+
+# cloud_id -> sku, for state reads whose caller doesn't pass the model.
+_sku_cache: dict[str, str] = {}
 
 _GOVEE_TYPE_TO_DOMAIN: dict[str, str] = {
     "light": "light",
@@ -264,12 +268,19 @@ The API key gives access to all Govee devices on your account."""
                 "value": 0,
             }
         elif action == "toggle":
-            state: dict[str, Any] = await self.get_state(device)
-            is_on: bool = state.get("state") == "on"
+            state: dict[str, Any] = await self.get_state(device.local_ip or "", device=device) or {}
+            current: Any = state.get("state")
+            if current not in ("on", "off"):
+                # Guessing would flip the light the wrong way; let the caller
+                # send the action the user meant.
+                return DeviceControlResult(
+                    success=False, entity_id=device.entity_id, action=action,
+                    error="state unknown; send turn_on or turn_off",
+                )
             capability = {
                 "type": "devices.capabilities.on_off",
                 "instance": "powerSwitch",
-                "value": 0 if is_on else 1,
+                "value": 0 if current == "on" else 1,
             }
         elif action == "set_brightness":
             brightness: int = int(params.get("brightness", 100))
@@ -324,7 +335,7 @@ The API key gives access to all Govee devices on your account."""
             return DeviceControlResult(success=False, entity_id=device.entity_id, action=action, error=f"Unsupported action: {action}")
 
         payload: dict[str, Any] = {
-            "requestId": "jarvis",
+            "requestId": str(uuid.uuid4()),
             "payload": {
                 "sku": sku,
                 "device": cloud_id,
@@ -366,7 +377,9 @@ The API key gives access to all Govee devices on your account."""
         # these directly) or from a DiscoveredDevice if the caller sends one.
         device: DiscoveredDevice | None = kwargs.get("device")
         cloud_id: str = kwargs.get("cloud_id") or (device.cloud_id if device else "") or ""
-        sku: str = kwargs.get("model") or (device.model if device else "") or ""
+        sku: str = (
+            kwargs.get("model") or kwargs.get("sku") or (device.model if device else "") or ""
+        )
         if not cloud_id:
             return {"error": "No cloud device ID available"}
 
@@ -375,8 +388,14 @@ The API key gives access to all Govee devices on your account."""
             "Content-Type": "application/json",
         }
 
+        if not sku:
+            # Govee rejects a state request without its sku (400).
+            sku = await self._lookup_sku(cloud_id, headers)
+            if not sku:
+                return {"error": f"No Govee sku found for device {cloud_id}"}
+
         payload: dict[str, Any] = {
-            "requestId": "jarvis",
+            "requestId": str(uuid.uuid4()),
             "payload": {
                 "sku": sku,
                 "device": cloud_id,
@@ -401,7 +420,8 @@ The API key gives access to all Govee devices on your account."""
                         instance: str = cap.get("instance", "")
                         value: Any = cap.get("state", {}).get("value")
                         if instance == "powerSwitch":
-                            state["state"] = "on" if value == 1 else "off"
+                            # Only report what Govee read; anything else is unknown, not off.
+                            state["state"] = {1: "on", 0: "off"}.get(value, "unknown")
                         elif instance == "brightness":
                             state["brightness"] = value
                         elif instance == "colorRgb":
@@ -412,10 +432,38 @@ The API key gives access to all Govee devices on your account."""
                                     value & 0xFF,
                                 ]
                         elif instance == "colorTemperatureK":
-                            state["color_temp"] = value
+                            if isinstance(value, int):
+                                state["color_temp"] = value
 
+                    state.setdefault("state", "unknown")
                     return state
                 else:
-                    return {"error": f"Govee API returned {resp.status_code}"}
+                    body: str = (resp.text or "")[:500]
+                    logger.warning(
+                        f"Govee state request for {sku}/{cloud_id} returned {resp.status_code}: {body}"
+                    )
+                    return {"error": f"Govee API returned {resp.status_code}: {body}"}
         except Exception as e:
             return {"error": f"Failed to get state: {e}"}
+
+    async def _lookup_sku(self, cloud_id: str, headers: dict[str, str]) -> str:
+        """Find a device's sku from the account's device list (cached)."""
+        if cloud_id in _sku_cache:
+            return _sku_cache[cloud_id]
+
+        import httpx
+
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(f"{GOVEE_API_BASE}/user/devices", headers=headers)
+                if resp.status_code != 200:
+                    logger.warning(f"Govee device list returned {resp.status_code}: {(resp.text or '')[:500]}")
+                    return ""
+                for dev in resp.json().get("data", []):
+                    if dev.get("device") and dev.get("sku"):
+                        _sku_cache[dev["device"]] = dev["sku"]
+        except Exception as e:
+            logger.warning(f"Govee device list failed: {e}")
+            return ""
+
+        return _sku_cache.get(cloud_id, "")
